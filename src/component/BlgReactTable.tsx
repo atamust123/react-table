@@ -7,7 +7,6 @@ export const BlgReactTable = () => {
         <TableComponent
             columns={GROUPED_COLUMNS}
             rowData={data}
-            pageCount={10000}
             sortable={true}
             key={"atakan"}
         />
