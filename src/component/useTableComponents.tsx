@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import React, { useCallback, useState, useEffect } from 'react';
-import { usePagination, useSortBy, useTable } from 'react-table';
-
+import { useFilters, usePagination, useSortBy, useTable } from 'react-table';
+import "./Table.css"
 export function useTableComponents(columns: any[], rowData: any[], sortable: boolean) {
     const [data, setData] = useState<any[]>([]);
     const [loading, setLoading] = React.useState(false);
@@ -30,67 +30,77 @@ export function useTableComponents(columns: any[], rowData: any[], sortable: boo
         manualSortBy: sortable,
         autoResetSortBy: false,
         autoResetPage: false,
-        pageCount: pageCount
-    }, useSortBy, usePagination);
+        pageCount: pageCount,
+        initialState: { pageSize: 12 }
+    }, useFilters, useSortBy, usePagination);
 
     const handleSort = useCallback(() => {
         // Give this sort an ID
         const sortId = ++sortIdRef.current;
 
         setLoading(true);
-        let sorted = _.cloneDeep(rowData)
-        sorted.sort((a, b) => {
-            for (let i = 0; i < sortBy.length; i++) {
-                if (a[sortBy[i].id] > b[sortBy[i].id]) {
-                    return sortBy[i].desc ? -1 : 1;
-                } else if (a[sortBy[i].id] < b[sortBy[i].id]) {
-                    return sortBy[i].desc ? 1 : -1;
-                }
+        setTimeout(() => {
+            if (sortId === sortIdRef.current) {
+                let sorted = _.cloneDeep(rowData)
+                sorted.sort((a, b) => {
+                    for (let i = 0; i < sortBy.length; i++) {
+                        if (a[sortBy[i].id] > b[sortBy[i].id]) {
+                            return sortBy[i].desc ? -1 : 1;
+                        } else if (a[sortBy[i].id] < b[sortBy[i].id]) {
+                            return sortBy[i].desc ? 1 : -1;
+                        }
+                    }
+                    return 0;
+                })
+                const startRow = pageSize * pageIndex;
+                const endRow = pageSize + startRow;
+                setData(sorted.slice(startRow, endRow));
+                setLoading(false);
             }
-            return 0;
-        })
-        const startRow = pageSize * pageIndex;
-        const endRow = pageSize + startRow;
-        setData(sorted.slice(startRow, endRow));
-        setLoading(false);
+        }, 100);
 
-    }, []);
+    }, [pageIndex, pageSize, sortBy]);
 
     const setPaginatedData = useCallback(() => {
         const fetchId = ++fetchIdRef.current;
-
         setLoading(true);
-        if (fetchId === fetchIdRef.current) {// if this is the latest fetch
-            const startRow = pageSize * pageIndex;
-            const endRow = startRow + pageSize;
-            setData(rowData.slice(startRow, endRow))
-
-            setPageCount(Math.ceil(rowData.length / pageSize));
-
-            setLoading(false);
-
-        }
-    }, [])
+        setTimeout(() => {
+            if (fetchId === fetchIdRef.current) {// if this is the latest fetch
+                const startRow = pageSize * pageIndex;
+                const endRow = startRow + pageSize;
+                setData(rowData.slice(startRow, endRow))
+                setPageCount(Math.ceil(rowData.length / pageSize));
+                setLoading(false);
+            }
+        }, 1);
+    }, [pageIndex, pageSize])
 
     useEffect(() => {
         handleSort();
+    }, [handleSort, setPaginatedData, pageIndex, pageSize, sortBy])
+
+    useEffect(() => {
         setPaginatedData()
-    }, [handleSort, sortBy, setPaginatedData, pageIndex, pageSize])
+    }, [])
 
     const renderHeader = () => {
         const lastHeaderElement = headerGroups[headerGroups.length - 1]
         return (
-            <thead>
+            <thead className='react-table__header'>
                 {<tr {...lastHeaderElement.getHeaderGroupProps()}>
                     {lastHeaderElement.headers.map((column) => (
                         // Add the sorting props to control sorting. For this example
                         // we can add them into the header props
-                        <th {...column.getHeaderProps(column.getSortByToggleProps())}>
+                        <th {...column.getHeaderProps([{
+                            className: column.id
+                        },
+                        column.getSortByToggleProps()
+                        ])}>
                             {column.render("Header")}
-                            {/* Add a sort direction indicator */}
                             <span>
                                 {column.isSorted ? column.isSortedDesc ? " 🔽" : " 🔼" : ""}
                             </span>
+                            {column.canFilter ? <div>{column.render("Filter")}</div> : null}
                         </th>
                     ))}
                 </tr>
@@ -100,16 +110,22 @@ export function useTableComponents(columns: any[], rowData: any[], sortable: boo
         )
     }
 
-    const renderBody = () => {
+    const renderBody = (onRowClick?: (value: any) => void) => {
         return (
-            <tbody {...getTableBodyProps()}>
+            <tbody {...getTableBodyProps()} className="react-table__body">
                 {page.map((row, i) => {
                     prepareRow(row);
                     return (
-                        <tr {...row.getRowProps()}>
+                        <tr
+                            onClick={() => onRowClick?.(row)}
+                            {...row.getRowProps([{
+                                className: `react-table__row react-table__row${row.id}`
+                            }])}>
                             {row.cells.map((cell) => {
                                 return (
-                                    <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
+                                    <td {...cell.getCellProps([
+                                        { className: cell.column.id }
+                                    ])}>{cell.render("Cell")}</td>
                                 );
                             })}
                         </tr>
@@ -120,8 +136,8 @@ export function useTableComponents(columns: any[], rowData: any[], sortable: boo
                         // Use our custom loading state to show a loading indicator
                         <td colSpan={100}>Loading...</td>
                     ) : (
-                        <td colSpan={1000}>
-                            Showing {page.length} of ~{pageCount * pageSize}{" "}
+                        <td colSpan={100}>
+                            Showing {(pageIndex * pageSize + 1) + "-" + ((pageIndex + 1) * pageSize)} of ~{rowData.length}{" "}
                             results
                         </td>
                     )}
@@ -131,7 +147,7 @@ export function useTableComponents(columns: any[], rowData: any[], sortable: boo
     }
     const renderFooter = () => {
         return (
-            <div className="pagination">
+            <div className="react-table__pagination">
                 <button onClick={() => gotoPage(0)} disabled={!canPreviousPage}>
                     {"<<"}
                 </button>{" "}
@@ -147,7 +163,7 @@ export function useTableComponents(columns: any[], rowData: any[], sortable: boo
                 <span>
                     Page{" "}
                     <strong>
-                        {pageIndex + 1} of {pageOptions.length}
+                        {(pageIndex + 1)} of {pageOptions.length}
                     </strong>{" "}
                 </span>
                 <span>
@@ -168,9 +184,9 @@ export function useTableComponents(columns: any[], rowData: any[], sortable: boo
                         setPageSize(Number(e.target.value));
                     }}
                 >
-                    {[10, 20, 30, 40, 50].map((pageSize) => (
-                        <option key={pageSize} value={pageSize}>
-                            Show {pageSize}
+                    {[12, 24, 36, 1000].map((pageSizeOption) => (
+                        <option key={pageSizeOption} value={pageSizeOption}>
+                            Show {pageSizeOption}
                         </option>
                     ))}
                 </select>

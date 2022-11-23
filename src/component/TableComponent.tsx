@@ -1,26 +1,27 @@
 import React from 'react';
+import data from "./data.json"
+import { GROUPED_COLUMNS } from "./columns"
 
 import { useTableComponents } from './useTableComponents';
 
 interface ITableComponent {
-    columns: any;
-    rowData: any[];
     sortable: boolean;
+    onRowClick?: (value: any) => void
 }
 
 export const TableComponent: React.FC<ITableComponent> = (props) => {
-    const { columns, rowData, sortable } = props || {}
+    const { sortable, onRowClick = (value: any) => console.log(value) } = props || {}
     const { renderBody,
         renderFooter,
         renderHeader,
         getTableProps
-    } = useTableComponents(columns, rowData, sortable)
+    } = useTableComponents(GROUPED_COLUMNS, data, sortable)
 
     return (
         <>
             <table {...getTableProps()}>
                 {renderHeader()}
-                {renderBody()}
+                {renderBody(onRowClick)}
             </table>
             {renderFooter()}
         </>

@@ -1,10 +1,10 @@
 import React from 'react';
 import './App.css';
-import { BlgReactTable } from './component/BlgReactTable';
+import { TableComponent } from './component/TableComponent';
 
 function App() {
   return (
-    <BlgReactTable />
+    <TableComponent sortable={true}/>
   );
 }
 

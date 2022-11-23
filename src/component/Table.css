@@ -1,0 +1,8 @@
+.react-table__header {}
+
+.react-table__body {}
+
+.react-table__row:hover {
+    background-color: aqua;
+    cursor: pointer
+}
